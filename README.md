@@ -2,7 +2,7 @@
 
 ## Usage
 ```
-icandebug.exe <name of running process>
+icandebug.exe <process name>
 ```
 
 ## Example
