@@ -1,6 +1,11 @@
 # icandebug
 
-Example:
+## Usage
+```
+icandebug.exe <name of running process>
+```
+
+## Example
 ```
 > icandebug.exe SomeMalware.exe
 Detected modified functions:
