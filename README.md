@@ -8,6 +8,14 @@ icandebug.exe <process name>
 ## Example
 ```
 > icandebug.exe SomeMalware.exe
+Parsing kernelbase.dll...
+Detected modified functions:
+0x7ffa3f6b99c0 (ResumeThread)
+0x7ffa3f66bcd0 (FreeLibrary)
+0x7ffa3f682900 (LoadLibraryExW)
+0x7ffa3f6b14c0 (LoadLibraryExA)
+
+Parsing ntdll.dll...
 Detected modified functions:
 0x7ffa43299600 (DbgUiConvertStateChangeStructure)
 0x7ffa4326d880 (DbgBreakPoint)
@@ -23,8 +31,4 @@ Detected modified functions:
 0x7ffa43299a50 (DbgUiWaitStateChange)
 0x7ffa432ab220 (DbgPrintReturnControlC)
 0x7ffa432ab270 (DbgPrompt)
-Press Enter to patch functions
-
-Restoring original functions...
-Success
 ```
