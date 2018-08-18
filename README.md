@@ -31,4 +31,8 @@ Detected modified functions:
 0x7ffa43299a50 (DbgUiWaitStateChange)
 0x7ffa432ab220 (DbgPrintReturnControlC)
 0x7ffa432ab270 (DbgPrompt)
+
+Press Enter to patch functions
+Restoring original functions...
+Success
 ```
