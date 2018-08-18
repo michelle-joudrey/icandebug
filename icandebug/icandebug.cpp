@@ -18,7 +18,7 @@ std::optional<IMAGE_SECTION_HEADER> getTextSectionHeader(blackbone::pe::PEImage 
 
 std::unique_ptr<uint8_t> getTextSectionBytes(std::wstring path) {
     blackbone::pe::PEImage image;
-    image.Load(path);
+    image.Load(path, true);
     auto header = getTextSectionHeader(image);
     if (!header.has_value()) {
         return {};
@@ -34,9 +34,9 @@ struct ModifiedFunction {
     uint64_t startAddress;
 };
 
-int patchAllTheThings(blackbone::Process &process) {
+int patchAllTheThings(blackbone::Process &process, std::wstring moduleName, bool shouldPatch) {
     // Copy the module image so that we can parse it
-    auto module = process.modules().GetModule(L"ntdll.dll");
+    auto module = process.modules().GetModule(moduleName);
     if (module == nullptr) {
         return 1;
     }
@@ -45,7 +45,7 @@ int patchAllTheThings(blackbone::Process &process) {
 
     // Parse the image so that we can figure out where the text section is
     blackbone::pe::PEImage image;
-    image.Load(imageMem.get(), module->size);
+    image.Parse(imageMem.get());
     auto textSectionHdr = getTextSectionHeader(image);
     if (!textSectionHdr.has_value()) {
         return 1;
@@ -77,10 +77,14 @@ int patchAllTheThings(blackbone::Process &process) {
     }
 
     // Setup some things so that we can lookup symbols in our own process
+    static bool initializedSymbols = false;
     auto processHandle = process.core().handle();
-    if (!SymInitialize(processHandle, NULL, true)) {
-        std::cout << "Error: Failed to initialize symbol handler" << std::endl;
-        return 1;
+    if (!initializedSymbols) {
+        if (!SymInitialize(processHandle, NULL, true)) {
+            std::cout << "Error: Failed to initialize symbol handler" << std::endl;
+            return 1;
+        }
+        initializedSymbols = true;
     }
 
     // Group the modified function RVAs by what function they belong to, using symbol info
@@ -110,6 +114,11 @@ int patchAllTheThings(blackbone::Process &process) {
     for (auto it : modifiedFunctions) {
         printf("0x%llx (%s)\n", it.second.startAddress, it.first.c_str());
     }
+
+    if (!shouldPatch) {
+        return 0;
+    }
+
     std::cout << "Press Enter to patch functions";
     std::cin.ignore();
 
@@ -134,16 +143,27 @@ int wmain(int argc, wchar_t* argv[]) {
     wchar_t *processName = argv[1];
     blackbone::Process process;
     NTSTATUS status = process.Attach(processName);
-    int terminationStatus = 0;
-    if (NT_SUCCESS(status)) {
-        process.Suspend();
-        terminationStatus = patchAllTheThings(process);
-    }
-    else {
+    if (!NT_SUCCESS(status)) {
         std::wcout << L"Failed to attach to " << processName << std::endl;
+        std::cout << "Press Enter to exit the program";
+        std::cin.ignore();
+        return 1;
     }
 
+    process.Suspend();
+    int terminationStatus = 0;
+    auto modules = process.modules().GetAllModules();
+    for (auto it : modules) {
+        auto path = it.second->fullPath;
+        if (path.find(L"\\windows\\system32\\") == std::string::npos) {
+            continue;
+        }
+        std::wcout << "Parsing " << it.second->name << "..." << std::endl;
+        terminationStatus += patchAllTheThings(process, it.second->name, false);
+        std::cout << std::endl;
+    }
     process.Detach();
+
     std::cout << "Press Enter to exit the program";
     std::cin.ignore();
     return terminationStatus;
