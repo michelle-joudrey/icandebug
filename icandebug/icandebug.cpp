@@ -5,6 +5,7 @@
 #include <DbgHelp.h>
 #include <fstream>
 #include "BlackBone/Process/Process.h"
+#include "getopt.h"
 
 std::optional<IMAGE_SECTION_HEADER> getTextSectionHeader(blackbone::pe::PEImage &image) {
     for (auto section : image.sections()) {
@@ -34,7 +35,7 @@ struct ModifiedFunction {
     uint64_t startAddress;
 };
 
-int patchAllTheThings(blackbone::Process &process, std::wstring moduleName, bool shouldPatch) {
+int patchAllTheThings(blackbone::Process &process, std::wstring moduleName, bool shouldHeal) {
     // Copy the module image so that we can parse it
     auto module = process.modules().GetModule(moduleName);
     if (module == nullptr) {
@@ -115,38 +116,80 @@ int patchAllTheThings(blackbone::Process &process, std::wstring moduleName, bool
         printf("0x%llx (%s)\n", it.second.startAddress, it.first.c_str());
     }
 
-    if (!shouldPatch) {
+    if (!shouldHeal) {
         return 0;
     }
 
-    std::cout << "Press Enter to patch functions";
-    std::cin.ignore();
-
     // Write the original text section to the target process
-    std::cout << std::endl << "Restoring original functions..." << std::endl;
+    std::cout << "Healing modified functions..." << std::endl;
     NTSTATUS status = process.memory().Write(imageVA + textSectionRVA, textSectionSize, originalTextSectionBytes.get());
     if (!NT_SUCCESS(status)) {
-        std::cout << "Failed to patch functions" << std::endl;
+        std::cout << "Failed" << std::endl;
         return 1;
     }
     std::cout << "Success" << std::endl;
     return 0;
 }
 
-int wmain(int argc, wchar_t* argv[]) {
-    if (argc != 2) {
-        TCHAR szFileName[MAX_PATH + 1];
-        GetModuleFileName(NULL, szFileName, MAX_PATH + 1);
-        std::cout << "Usage: " << szFileName << " <process name>" << std::endl;
+int main(int argc, char *argv[]) {
+    const char *processName = nullptr;
+    const char *pid = nullptr;
+    bool shouldHeal = false;
+    bool showUsage = false;
+
+    int opt;
+    while ((opt = getopt(argc, argv, "n:p:h::")) != -1) {
+        switch (opt) {
+        case 'n':
+            processName = optarg;
+            break;
+        case 'p':
+            pid = optarg;
+            break;
+        case 'h':
+            shouldHeal = true;
+            break;
+        default:
+            showUsage = true;
+            break;
+        }
     }
 
-    wchar_t *processName = argv[1];
+    if (processName == nullptr && pid == nullptr ||
+        processName != nullptr && pid != nullptr ||
+        showUsage)
+    {
+        std::cout <<
+            "\n"
+            "Usage:\n"
+            "  icandebug.exe -p <pid> [-h]\n"
+            "  icandebug.exe -n <process name> [-h]\n"
+            "\n"
+            "Options:\n"
+            "-h    Heal modified functions\n";
+        return 1;
+    }
+
     blackbone::Process process;
-    NTSTATUS status = process.Attach(processName);
+    NTSTATUS status;
+
+    if (processName != nullptr) {
+        // convert process name to wide-char string
+        size_t size = strlen(processName) + 1;
+        wchar_t *processNameWide = new wchar_t[size];
+        size_t outSize;
+        mbstowcs_s(&outSize, processNameWide, size, processName, size - 1);
+
+        status = process.Attach(processNameWide);
+    }
+    else {
+        int pidInt = atoi(pid);
+        status = process.Attach(pidInt);
+    }
+
     if (!NT_SUCCESS(status)) {
-        std::wcout << L"Failed to attach to " << processName << std::endl;
-        std::cout << "Press Enter to exit the program";
-        std::cin.ignore();
+        const char *str = processName != nullptr ? processName : pid;
+        std::wcout << L"Failed to attach to " << str << std::endl;
         return 1;
     }
 
@@ -158,13 +201,10 @@ int wmain(int argc, wchar_t* argv[]) {
         if (path.find(L"\\windows\\system32\\") == std::string::npos) {
             continue;
         }
-        std::wcout << "Parsing " << it.second->name << "..." << std::endl;
-        terminationStatus += patchAllTheThings(process, it.second->name, false);
+        std::wcout << "Scanning " << it.second->name << "..." << std::endl;
+        terminationStatus += patchAllTheThings(process, it.second->name, shouldHeal);
         std::cout << std::endl;
     }
     process.Detach();
-
-    std::cout << "Press Enter to exit the program";
-    std::cin.ignore();
     return terminationStatus;
 }
