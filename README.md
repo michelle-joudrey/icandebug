@@ -2,37 +2,42 @@
 
 ## Usage
 ```
-icandebug.exe <process name>
+Usage:
+  icandebug.exe -p <pid> [-h]
+  icandebug.exe -n <process name> [-h]
+
+Options:
+-h    Heal modified functions
 ```
 
 ## Example
 ```
-> icandebug.exe SomeMalware.exe
-Parsing kernelbase.dll...
+>icandebug.exe -p 1337 -h
+Scanning kernelbase.dll...
 Detected modified functions:
-0x7ffa3f6b99c0 (ResumeThread)
-0x7ffa3f66bcd0 (FreeLibrary)
-0x7ffa3f682900 (LoadLibraryExW)
-0x7ffa3f6b14c0 (LoadLibraryExA)
+0x7ff8997d99c0 (ResumeThread)
+0x7ff89978bcd0 (FreeLibrary)
+0x7ff8997a2900 (LoadLibraryExW)
+0x7ff8997d14c0 (LoadLibraryExA)
+Healing modified functions...
+Success
 
-Parsing ntdll.dll...
+Scanning ntdll.dll...
 Detected modified functions:
-0x7ffa43299600 (DbgUiConvertStateChangeStructure)
-0x7ffa4326d880 (DbgBreakPoint)
-0x7ffa43299560 (DbgUiConnectToDbg)
-0x7ffa4326d890 (DbgUserBreakPoint)
-0x7ffa432995d0 (DbgUiContinue)
-0x7ffa432999b0 (DbgUiRemoteBreakin)
-0x7ffa432998b0 (DbgUiDebugActiveProcess)
-0x7ffa43299920 (DbgUiGetThreadDebugObject)
-0x7ffa43299940 (DbgUiIssueRemoteBreakin)
-0x7ffa43299a10 (DbgUiSetThreadDebugObject)
-0x7ffa43299a30 (DbgUiStopDebugging)
-0x7ffa43299a50 (DbgUiWaitStateChange)
-0x7ffa432ab220 (DbgPrintReturnControlC)
-0x7ffa432ab270 (DbgPrompt)
-
-Press Enter to patch functions
-Restoring original functions...
+0x7ff89c8a9600 (DbgUiConvertStateChangeStructure)
+0x7ff89c87d880 (DbgBreakPoint)
+0x7ff89c8a9560 (DbgUiConnectToDbg)
+0x7ff89c87d890 (DbgUserBreakPoint)
+0x7ff89c8a95d0 (DbgUiContinue)
+0x7ff89c8a99b0 (DbgUiRemoteBreakin)
+0x7ff89c8a98b0 (DbgUiDebugActiveProcess)
+0x7ff89c8a9920 (DbgUiGetThreadDebugObject)
+0x7ff89c8a9940 (DbgUiIssueRemoteBreakin)
+0x7ff89c8a9a10 (DbgUiSetThreadDebugObject)
+0x7ff89c8a9a30 (DbgUiStopDebugging)
+0x7ff89c8a9a50 (DbgUiWaitStateChange)
+0x7ff89c8bb220 (DbgPrintReturnControlC)
+0x7ff89c8bb270 (DbgPrompt)
+Healing modified functions...
 Success
 ```
